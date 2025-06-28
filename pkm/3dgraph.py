@@ -19,17 +19,18 @@ import numpy as np
 import plotly.graph_objects as go
 
 # ── CONFIG ────────────────────────────────────────────────────────
-CSV_FILE       = "relations.csv"
-CACHE_LAYOUT   = pathlib.Path("layout.json")
+BASE_DIR       = pathlib.Path(__file__).parent
+CSV_FILE       = BASE_DIR / "relations.csv"
+CACHE_LAYOUT   = BASE_DIR / "layout.json"
 ITERATIONS     = 30
 SPACING_VALUES = [0.25, 0.5, 1, 2]     # ← updated
 ARROW_FRAC     = 0.12
 
-def build_figure(csv_file: str = CSV_FILE) -> go.Figure:
+def build_figure(csv_file: str | pathlib.Path = CSV_FILE) -> go.Figure:
     """Return a Plotly figure for the knowledge graph."""
 
     # ── LOAD GRAPH ────────────────────────────────────────────────────
-    df = pd.read_csv(csv_file)
+    df = pd.read_csv(str(csv_file))
     G = nx.from_pandas_edgelist(
         df, "Source", "Target", edge_attr="Label", create_using=nx.DiGraph()
     )

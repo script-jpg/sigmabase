@@ -30,7 +30,13 @@ def export_csv():
     """Run the Prolog exporter if SWI-Prolog is available."""
     try:
         subprocess.run(
-            ['swipl', '-s', str(BASE_DIR / 'rules.pl'), '-g', f"export_rel_csv('{CSV_FILE}'),halt"],
+            [
+                'swipl',
+                '-s',
+                str(BASE_DIR / 'rules.pl'),
+                '-g',
+                f"export_rel_csv('{str(CSV_FILE)}'),halt",
+            ],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -58,4 +64,4 @@ def reload_graph(_):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run(debug=False)
