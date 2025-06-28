@@ -1,1 +1,8 @@
-./pkm/files/*
+pkm/files/
+pkm/.vscode/settings.json
+pkm/.obsidian/
+pkm/.__facts_demo.pl
+pkm/._.obsidian
+pkm/._layout.json
+pkm/._relations.csv
+pkm/layout.json

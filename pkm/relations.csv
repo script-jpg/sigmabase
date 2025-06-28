@@ -1,0 +1,6 @@
+Source,Target,Label
+nn_mgf_of_gam_a_b,nn_mgf,example of
+nn_kth_moment_of_gam_a_b,nn_kth_moment,example of
+nn_linear_program,nn_mathematical_optimization_problem,special case of
+nn_convex_optimization_problem,nn_mathematical_optimization_problem,special case of
+nn_linear_program,nn_convex_optimization_problem,special case of
