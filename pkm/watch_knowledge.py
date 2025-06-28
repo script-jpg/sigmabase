@@ -20,7 +20,7 @@ def format(name: str) -> str:
     assert name
     LOWER_CASE = re.compile(r"[a-z]")
     to_snake_case = lambda s: re.sub(r"\W+", "_", s).strip("_").lower()
-    append_nn = lambda s: "nn" + s if not LOWER_CASE.match(s[0]) else s
+    append_nn = lambda s: "nn_" + s if not LOWER_CASE.match(s[0]) else s
     return append_nn(to_snake_case(name)) 
 
 
