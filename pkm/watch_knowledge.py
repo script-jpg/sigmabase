@@ -1,3 +1,7 @@
+"""Auto-append new knowledge files to ``facts.pl``."""
+
+from __future__ import annotations
+
 import re
 import time
 from pathlib import Path
@@ -10,6 +14,15 @@ KNOWLEDGE_DIR = Path(__file__).with_name("files")
 FACTS_FILE = Path(__file__).with_name("facts.pl")
 
 NOTE_RE = re.compile(r"note\([^,]+,\s*'([^']+)'\)\.")
+
+
+def to_snake_case(name: str) -> str:
+    """Return ``name`` converted to snake_case without ``nn_`` prefix."""
+    stem = name
+    if stem.lower().startswith("nn_"):
+        stem = stem[3:]
+    snake = re.sub(r"\W+", "_", stem).strip("_")
+    return snake.lower()
 
 
 def load_known_files() -> set[str]:
@@ -25,9 +38,7 @@ def load_known_files() -> set[str]:
 
 def append_note(file_name: str) -> None:
     """Append a note line for the given file name."""
-    note_name = Path(file_name).stem
-    if not note_name.startswith("nn_"):
-        note_name = "nn_" + note_name
+    note_name = to_snake_case(Path(file_name).stem)
     entry = f"note({note_name}, 'files/{file_name}').\n"
     with FACTS_FILE.open("a") as f:
         f.write(entry)
@@ -35,13 +46,16 @@ def append_note(file_name: str) -> None:
 
 
 def sync_existing(known: set[str]) -> None:
-    """Ensure facts.pl has entries for all existing files."""
+    """Ensure ``facts.pl`` has entries for all existing files."""
     for path in KNOWLEDGE_DIR.iterdir():
-        if path.is_file():
-            rel = f"files/{path.name}"
-            if rel not in known:
-                append_note(path.name)
-                known.add(rel)
+        if not path.is_file():
+            continue
+        if path.name.startswith("._") or path.name == ".DS_Store":
+            continue
+        rel = f"files/{path.name}"
+        if rel not in known:
+            append_note(path.name)
+            known.add(rel)
 
 
 class Handler(FileSystemEventHandler):
@@ -50,10 +64,12 @@ class Handler(FileSystemEventHandler):
     def __init__(self, known: set[str]):
         self.known = known
 
-    def on_created(self, event):
+    def on_created(self, event) -> None:  # type: ignore[override]
         if event.is_directory:
             return
         file_path = Path(event.src_path)
+        if file_path.name.startswith("._") or file_path.name == ".DS_Store":
+            return
         rel = f"files/{file_path.name}"
         if rel not in self.known:
             append_note(file_path.name)

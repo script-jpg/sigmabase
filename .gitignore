@@ -8,3 +8,5 @@ pkm/._relations.csv
 pkm/layout.json
 __pycache__/
 pkm/__pycache__/
+pkm/.DS_Store
+pkm/._*
