@@ -17,10 +17,8 @@ NOTE_RE = re.compile(r"note\([^,]+,\s*'([^']+)'\)\.")
 
 
 def to_snake_case(name: str) -> str:
-    """Return ``name`` converted to snake_case without ``nn_`` prefix."""
+    """Return ``name`` converted to snake_case."""
     stem = name
-    if stem.lower().startswith("nn_"):
-        stem = stem[3:]
     snake = re.sub(r"\W+", "_", stem).strip("_")
     return snake.lower()
 
