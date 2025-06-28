@@ -12,6 +12,7 @@
 """
 
 import json, pathlib, pandas as pd, networkx as nx, numpy as np, plotly.graph_objects as go
+import re
 
 # ── CONFIG ────────────────────────────────────────────────────────
 CSV_FILE       = "relations.csv"
@@ -19,6 +20,19 @@ CACHE_LAYOUT   = pathlib.Path("layout.json")
 ITERATIONS     = 30
 SPACING_VALUES = [0.25, 0.5, 1, 2]     # ← updated
 ARROW_FRAC     = 0.12
+
+# ── NOTE FILE LOOKUP ─────────────────────────────────────────────-
+FACTS_FILE     = "facts.pl"
+note_files = {}
+note_re = re.compile(r"note\(([^,]+),\s*'([^']+)'\)")
+try:
+    with open(FACTS_FILE) as f:
+        for line in f:
+            m = note_re.search(line)
+            if m:
+                note_files[m.group(1)] = m.group(2)
+except FileNotFoundError:
+    pass
 
 # ── LOAD GRAPH ────────────────────────────────────────────────────
 df = pd.read_csv(CSV_FILE)
@@ -39,6 +53,7 @@ centroid = {cid: np.mean([pos0[n] for n in G if comp_id[n]==cid], axis=0)
 
 node_text_plain = list(G.nodes())
 node_text_bold  = [f"<b>{t}</b>" for t in node_text_plain]
+node_files      = [note_files.get(n, "") for n in G]
 
 # ── COORD ARRAYS PER SPACING ─────────────────────────────────────
 def arrays_for(sp):
@@ -93,12 +108,14 @@ node_lbl_t = sc3d(*a1["node_lbl"],
     text=node_text_bold,
     textfont=dict(color="black"),
     hoverinfo="none",
+    customdata=node_files,
     visible=True)                      # ← now visible by default
 
 # Node spheres (OFF by default)
 node_t = sc3d(*a1["node"], mode="markers",
               marker=dict(size=6, opacity=0.85),
               hovertext=node_text_plain,
+              customdata=node_files,
               visible=False)           # ← now hidden by default
 
 fig = go.Figure(data=[edge_t, arrow_t, edge_lbl_t, node_lbl_t, node_t])
@@ -147,7 +164,20 @@ fig.update_layout(
     )],
 
     scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
-    margin=dict(l=0, r=0, t=0, b=0)
+    margin=dict(l=0, r=0, t=0, b=0),
+    clickmode="event+select"
 )
 
-fig.show()
+CLICK_JS = """
+var plot = document.getElementsByClassName('plotly-graph-div')[0];
+plot.on('plotly_click', function(data){
+    var c = data.points[0].curveNumber;
+    if(c===3 || c===4){
+        var url = data.points[0].customdata;
+        if(url){window.open(url);}
+    }
+});
+"""
+
+fig.write_html("graph.html", include_plotlyjs="cdn", auto_open=True,
+               post_script=CLICK_JS)
