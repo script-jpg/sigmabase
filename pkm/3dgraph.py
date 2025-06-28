@@ -11,7 +11,12 @@
 • All performance tweaks preserved (cached layout, uirevision, no cones)
 """
 
-import json, pathlib, pandas as pd, networkx as nx, numpy as np, plotly.graph_objects as go
+import json
+import pathlib
+import pandas as pd
+import networkx as nx
+import numpy as np
+import plotly.graph_objects as go
 
 # ── CONFIG ────────────────────────────────────────────────────────
 CSV_FILE       = "relations.csv"
@@ -20,134 +25,180 @@ ITERATIONS     = 30
 SPACING_VALUES = [0.25, 0.5, 1, 2]     # ← updated
 ARROW_FRAC     = 0.12
 
-# ── LOAD GRAPH ────────────────────────────────────────────────────
-df = pd.read_csv(CSV_FILE)
-G  = nx.from_pandas_edgelist(df, "Source", "Target",
-                             edge_attr="Label", create_using=nx.DiGraph())
+def build_figure(csv_file: str = CSV_FILE) -> go.Figure:
+    """Return a Plotly figure for the knowledge graph."""
 
-# ── LAYOUT (cached) ───────────────────────────────────────────────
-if CACHE_LAYOUT.exists():
-    pos0 = {n: np.array(p) for n, p in json.load(CACHE_LAYOUT.open()).items()}
-else:
-    pos0 = nx.spring_layout(G, dim=3, seed=42, iterations=ITERATIONS)
-    json.dump({n: pos0[n].tolist() for n in G}, CACHE_LAYOUT.open("w"))
+    # ── LOAD GRAPH ────────────────────────────────────────────────────
+    df = pd.read_csv(csv_file)
+    G = nx.from_pandas_edgelist(
+        df, "Source", "Target", edge_attr="Label", create_using=nx.DiGraph()
+    )
 
-comp_id  = {n: i for i, c in enumerate(nx.connected_components(G.to_undirected()))
-            for n in c}
-centroid = {cid: np.mean([pos0[n] for n in G if comp_id[n]==cid], axis=0)
-            for cid in set(comp_id.values())}
+    # ── LAYOUT (cached) ───────────────────────────────────────────────
+    if CACHE_LAYOUT.exists():
+        pos0 = {n: np.array(p) for n, p in json.load(CACHE_LAYOUT.open()).items()}
+    else:
+        pos0 = nx.spring_layout(G, dim=3, seed=42, iterations=ITERATIONS)
+        json.dump({n: pos0[n].tolist() for n in G}, CACHE_LAYOUT.open("w"))
 
-node_text_plain = list(G.nodes())
-node_text_bold  = [f"<b>{t}</b>" for t in node_text_plain]
+    comp_id = {n: i for i, c in enumerate(nx.connected_components(G.to_undirected())) for n in c}
+    centroid = {
+        cid: np.mean([pos0[n] for n in G if comp_id[n] == cid], axis=0)
+        for cid in set(comp_id.values())
+    }
 
-# ── COORD ARRAYS PER SPACING ─────────────────────────────────────
-def arrays_for(sp):
-    pos = {n: pos0[n] + (sp-1)*centroid[comp_id[n]] for n in G}
-    node_xyz = np.array([pos[n] for n in G]).T
+    node_text_plain = list(G.nodes())
+    node_text_bold = [f"<b>{t}</b>" for t in node_text_plain]
 
-    edge = [[], [], []]; arrow = [[], [], []]
-    for u, v in G.edges():
-        p0, p1 = pos[u], pos[v]
-        edge[0] += [p0[0], p1[0], None]
-        edge[1] += [p0[1], p1[1], None]
-        edge[2] += [p0[2], p1[2], None]
+    # ── COORD ARRAYS PER SPACING ─────────────────────────────────────
+    def arrays_for(sp):
+        pos = {n: pos0[n] + (sp - 1) * centroid[comp_id[n]] for n in G}
+        node_xyz = np.array([pos[n] for n in G]).T
 
-        head = p1 - ARROW_FRAC*(p1-p0)
-        arrow[0] += [head[0], p1[0], None]
-        arrow[1] += [head[1], p1[1], None]
-        arrow[2] += [head[2], p1[2], None]
+        edge = [[], [], []]
+        arrow = [[], [], []]
+        for u, v in G.edges():
+            p0, p1 = pos[u], pos[v]
+            edge[0] += [p0[0], p1[0], None]
+            edge[1] += [p0[1], p1[1], None]
+            edge[2] += [p0[2], p1[2], None]
 
-    lx, ly, lz, ltxt = [], [], [], []
-    for u, v, d in G.edges(data=True):
-        p0, p1 = pos[u], pos[v]
-        lx.append((p0[0]+p1[0])/2)
-        ly.append((p0[1]+p1[1])/2)
-        lz.append((p0[2]+p1[2])/2)
-        ltxt.append(d["Label"])
+            head = p1 - ARROW_FRAC * (p1 - p0)
+            arrow[0] += [head[0], p1[0], None]
+            arrow[1] += [head[1], p1[1], None]
+            arrow[2] += [head[2], p1[2], None]
 
-    return dict(node=node_xyz,
-                edge=edge,
-                arrow=arrow,
-                edge_lbl=(lx, ly, lz, ltxt),
-                node_lbl=node_xyz)
+        lx, ly, lz, ltxt = [], [], [], []
+        for u, v, d in G.edges(data=True):
+            p0, p1 = pos[u], pos[v]
+            lx.append((p0[0] + p1[0]) / 2)
+            ly.append((p0[1] + p1[1]) / 2)
+            lz.append((p0[2] + p1[2]) / 2)
+            ltxt.append(d["Label"])
 
-arrays = {s: arrays_for(s) for s in SPACING_VALUES}
+        return dict(
+            node=node_xyz,
+            edge=edge,
+            arrow=arrow,
+            edge_lbl=(lx, ly, lz, ltxt),
+            node_lbl=node_xyz,
+        )
 
-# ── TRACE FACTORY ────────────────────────────────────────────────
-def sc3d(x, y, z, **kw):
-    t = go.Scatter3d(x=x, y=y, z=z, **kw); t.uirevision = "static"; return t
+    arrays = {s: arrays_for(s) for s in SPACING_VALUES}
 
-a1 = arrays[1]
+    # ── TRACE FACTORY ────────────────────────────────────────────────
+    def sc3d(x, y, z, **kw):
+        t = go.Scatter3d(x=x, y=y, z=z, **kw)
+        t.uirevision = "static"
+        return t
 
-edge_t  = sc3d(*a1["edge"],  mode="lines", line=dict(width=1), hoverinfo="none")
-arrow_t = sc3d(*a1["arrow"], mode="lines", line=dict(width=4),
-               hoverinfo="none", visible=False)
-lx,ly,lz,lt = a1["edge_lbl"]
-edge_lbl_t = sc3d(lx,ly,lz, mode="text", text=lt,
-                  hoverinfo="none", visible=False)
+    a1 = arrays[1]
 
-# Node-label trace (ON by default)
-node_lbl_t = sc3d(*a1["node_lbl"],
-    mode="markers+text",
-    marker=dict(size=12, symbol="square", color="#fff7b2", line=dict(width=0)),
-    text=node_text_bold,
-    textfont=dict(color="black"),
-    hoverinfo="none",
-    visible=True)                      # ← now visible by default
+    edge_t = sc3d(*a1["edge"], mode="lines", line=dict(width=1), hoverinfo="none")
+    arrow_t = sc3d(
+        *a1["arrow"], mode="lines", line=dict(width=4), hoverinfo="none", visible=False
+    )
+    lx, ly, lz, lt = a1["edge_lbl"]
+    edge_lbl_t = sc3d(lx, ly, lz, mode="text", text=lt, hoverinfo="none", visible=False)
 
-# Node spheres (OFF by default)
-node_t = sc3d(*a1["node"], mode="markers",
-              marker=dict(size=6, opacity=0.85),
-              hovertext=node_text_plain,
-              visible=False)           # ← now hidden by default
+    # Node-label trace (ON by default)
+    node_lbl_t = sc3d(
+        *a1["node_lbl"],
+        mode="markers+text",
+        marker=dict(size=12, symbol="square", color="#fff7b2", line=dict(width=0)),
+        text=node_text_bold,
+        textfont=dict(color="black"),
+        hoverinfo="none",
+        visible=True,
+    )
 
-fig = go.Figure(data=[edge_t, arrow_t, edge_lbl_t, node_lbl_t, node_t])
+    # Node spheres (OFF by default)
+    node_t = sc3d(
+        *a1["node"],
+        mode="markers",
+        marker=dict(size=6, opacity=0.85),
+        hovertext=node_text_plain,
+        visible=False,
+    )
 
-# ── SLIDER (restyle) ─────────────────────────────────────────────
-steps = []
-for s in SPACING_VALUES:
-    a = arrays[s]
-    steps.append(dict(
-        label=str(s),
-        method="restyle",
-        args=[{
-            "x":[a["edge"][0], a["arrow"][0], a["edge_lbl"][0],
-                 a["node_lbl"][0], a["node"][0]],
-            "y":[a["edge"][1], a["arrow"][1], a["edge_lbl"][1],
-                 a["node_lbl"][1], a["node"][1]],
-            "z":[a["edge"][2], a["arrow"][2], a["edge_lbl"][2],
-                 a["node_lbl"][2], a["node"][2]],
-            "text":[None, None, a["edge_lbl"][3], node_text_bold, None]
-        }, [0,1,2,3,4]]
-    ))
+    fig = go.Figure(data=[edge_t, arrow_t, edge_lbl_t, node_lbl_t, node_t])
 
-fig.update_layout(
-    sliders=[dict(steps=steps, active=SPACING_VALUES.index(1),
-                  x=0.02, y=-0.05, xanchor="left", len=0.7)],
+    # ── SLIDER (restyle) ─────────────────────────────────────────────
+    steps = []
+    for s in SPACING_VALUES:
+        a = arrays[s]
+        steps.append(
+            dict(
+                label=str(s),
+                method="restyle",
+                args=[
+                    {
+                        "x": [
+                            a["edge"][0],
+                            a["arrow"][0],
+                            a["edge_lbl"][0],
+                            a["node_lbl"][0],
+                            a["node"][0],
+                        ],
+                        "y": [
+                            a["edge"][1],
+                            a["arrow"][1],
+                            a["edge_lbl"][1],
+                            a["node_lbl"][1],
+                            a["node"][1],
+                        ],
+                        "z": [
+                            a["edge"][2],
+                            a["arrow"][2],
+                            a["edge_lbl"][2],
+                            a["node_lbl"][2],
+                            a["node"][2],
+                        ],
+                        "text": [None, None, a["edge_lbl"][3], node_text_bold, None],
+                    },
+                    [0, 1, 2, 3, 4],
+                ],
+            )
+        )
 
-    # ── SINGLE-TOGGLE BUTTONS ────────────────────────────────────
-    updatemenus=[dict(
-        type="buttons", x=1.05, y=0.8,
-        buttons=[
-            dict(label="⚲ Edge labels",
-                 method="restyle",
-                 args=[{"visible":[True]}, [2]],
-                 args2=[{"visible":[False]}, [2]]),
+    fig.update_layout(
+        sliders=[
+            dict(steps=steps, active=SPACING_VALUES.index(1), x=0.02, y=-0.05, xanchor="left", len=0.7)
+        ],
+        # ── SINGLE-TOGGLE BUTTONS ────────────────────────────────────
+        updatemenus=[
+            dict(
+                type="buttons",
+                x=1.05,
+                y=0.8,
+                buttons=[
+                    dict(
+                        label="⚲ Edge labels",
+                        method="restyle",
+                        args=[{"visible": [True]}, [2]],
+                        args2=[{"visible": [False]}, [2]],
+                    ),
+                    dict(
+                        label="⇢ Arrowheads",
+                        method="restyle",
+                        args=[{"visible": [True]}, [1]],
+                        args2=[{"visible": [False]}, [1]],
+                    ),
+                    dict(
+                        label="🔤 Node labels",
+                        method="restyle",
+                        args=[{"visible": [True]}, [3]],
+                        args2=[{"visible": [False]}, [3]],
+                    ),
+                ],
+            )
+        ],
+        scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
+        margin=dict(l=0, r=0, t=0, b=0),
+    )
 
-            dict(label="⇢ Arrowheads",
-                 method="restyle",
-                 args=[{"visible":[True]}, [1]],
-                 args2=[{"visible":[False]}, [1]]),
+    return fig
 
-            dict(label="🔤 Node labels",
-                 method="restyle",
-                 args=[{"visible":[True]}, [3]],
-                 args2=[{"visible":[False]}, [3]])
-        ]
-    )],
 
-    scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
-    margin=dict(l=0, r=0, t=0, b=0)
-)
-
-fig.show()
+if __name__ == "__main__":
+    build_figure().show()
