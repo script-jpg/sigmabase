@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 import importlib.util
 
-from dash import Dash, dcc, html, Output, Input
+from dash import Dash, dcc, html, Output, Input, no_update
 
 BASE_DIR = Path(__file__).parent
 
@@ -22,7 +22,7 @@ current_fig = build_figure()
 
 app.layout = html.Div(
     [
-        dcc.Graph(id="graph", figure=current_fig, style={"height": "100vh"}),
+        dcc.Graph(id="graph", figure=current_fig, style={"height": "100vh", "width": "100vw"}),
         dcc.Interval(id="poll", interval=2000),
     ],
     style={"height": "100vh", "width": "100vw"},
@@ -66,7 +66,8 @@ def reload_graph(_):
         current_fig = build_figure()
         if camera:
             current_fig.update_layout(scene_camera=camera)
-    return current_fig
+        return current_fig
+    return no_update
 
 
 if __name__ == '__main__':
