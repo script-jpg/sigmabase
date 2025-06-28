@@ -196,6 +196,7 @@ def build_figure(csv_file: str | pathlib.Path = CSV_FILE) -> go.Figure:
         ],
         scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
         margin=dict(l=0, r=0, t=0, b=0),
+        uirevision="graph",
     )
 
     return fig

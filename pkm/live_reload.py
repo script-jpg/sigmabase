@@ -20,10 +20,13 @@ mod_times = {f: f.stat().st_mtime for f in FACTS_FILES if f.exists()}
 app = Dash(__name__)
 current_fig = build_figure()
 
-app.layout = html.Div([
-    dcc.Graph(id='graph', figure=current_fig),
-    dcc.Interval(id='poll', interval=2000)
-])
+app.layout = html.Div(
+    [
+        dcc.Graph(id="graph", figure=current_fig, style={"height": "100vh"}),
+        dcc.Interval(id="poll", interval=2000),
+    ],
+    style={"height": "100vh", "width": "100vw"},
+)
 
 
 def export_csv():
@@ -59,7 +62,10 @@ def reload_graph(_):
             changed = True
     if changed:
         export_csv()
+        camera = current_fig.layout.scene.camera if "scene" in current_fig.layout else None
         current_fig = build_figure()
+        if camera:
+            current_fig.update_layout(scene_camera=camera)
     return current_fig
 
 
