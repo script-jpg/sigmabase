@@ -15,12 +15,13 @@ FACTS_FILE = Path(__file__).with_name("facts.pl")
 
 NOTE_RE = re.compile(r"note\([^,]+,\s*'([^']+)'\)\.")
 
-
-def to_snake_case(name: str) -> str:
-    """Return ``name`` converted to snake_case."""
-    stem = name
-    snake = re.sub(r"\W+", "_", stem).strip("_")
-    return snake.lower()
+def format(name: str) -> str:
+    """Converts to snake case and then prepends 'nn' if result doesn't start with lowercase letter."""
+    assert name
+    LOWER_CASE = re.compile(r"[a-z]")
+    to_snake_case = lambda s: re.sub(r"\W+", "_", s).strip("_").lower()
+    append_nn = lambda s: "nn" + s if not LOWER_CASE.match(s[0]) else s
+    return append_nn(to_snake_case(name)) 
 
 
 def load_known_files() -> set[str]:
@@ -36,7 +37,7 @@ def load_known_files() -> set[str]:
 
 def append_note(file_name: str) -> None:
     """Append a note line for the given file name."""
-    note_name = to_snake_case(Path(file_name).stem)
+    note_name = format(Path(file_name).stem)
     entry = f"note({note_name}, 'files/{file_name}').\n"
     with FACTS_FILE.open("a") as f:
         f.write(entry)
