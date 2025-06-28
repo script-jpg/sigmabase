@@ -6,3 +6,5 @@ pkm/._.obsidian
 pkm/._layout.json
 pkm/._relations.csv
 pkm/layout.json
+__pycache__/
+pkm/__pycache__/
