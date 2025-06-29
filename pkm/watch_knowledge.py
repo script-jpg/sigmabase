@@ -1,8 +1,9 @@
-"""Keep ``facts.pl`` in lock-step with the contents of the ``files`` folder.
+"""Keep ``facts.pl`` synchronized with the ``files`` folder.
 
-Adds a note when a new file appears (created or moved in), rewrites the note
-when a file is renamed inside the folder, and removes the note when a file is
-deleted or moved out.
+*  add / remove   → keeps the corresponding ``note(...)`` lines in sync  
+*  rename inside  → rewrites the old ``note(...)`` line, **updates any
+   matching ``rel(...)`` lines**, and appends a new ``note(...)``  
+*  move in / out  → handled as add / remove
 """
 
 from __future__ import annotations
@@ -19,17 +20,16 @@ from watchdog.events import (
 )
 from watchdog.observers import Observer
 
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # Paths
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 KNOWLEDGE_DIR = Path(__file__).with_name("files")   # folder to watch
 FACTS_FILE = Path(__file__).with_name("facts.pl")   # Prolog knowledge base
 
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # Regex helpers
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 NOTE_RE = re.compile(r"note\([^,]+,\s*'([^']+)'\)\.")
-
 LOWER_CASE = re.compile(r"[a-z]")
 
 
@@ -39,14 +39,13 @@ def _to_snake_case(s: str) -> str:
 
 def format(name: str) -> str:
     """Convert to snake_case; prepend 'nn_' if it doesn't start with a-z."""
-    assert name
     snaked = _to_snake_case(name)
     return "nn_" + snaked if not LOWER_CASE.match(snaked[0]) else snaked
 
 
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # facts.pl helpers
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 def load_known_files() -> set[str]:
     """Return a set of 'files/<name>' already present in facts.pl."""
     known: set[str] = set()
@@ -59,7 +58,6 @@ def load_known_files() -> set[str]:
 
 
 def append_note(file_name: str) -> None:
-    """Append a note line for ``file_name`` to facts.pl."""
     note_name = format(Path(file_name).stem)
     entry = f"note({note_name}, 'files/{file_name}').\n"
     with FACTS_FILE.open("a") as f:
@@ -68,42 +66,57 @@ def append_note(file_name: str) -> None:
 
 
 def remove_note(file_name: str) -> None:
-    """Remove the note line whose second arg is 'files/<file_name>'."""
     target = f"files/{file_name}"
     if not FACTS_FILE.exists():
         return
-    lines = FACTS_FILE.read_text().splitlines(keepends=True)
-    with FACTS_FILE.open("w") as f:
+    with FACTS_FILE.open("r+") as f:
+        lines = f.readlines()
+        f.seek(0)
         for line in lines:
             if target not in line:
                 f.write(line)
-    print(f"Removed: note(_, '{target}').")
+        f.truncate()
+    print(f"Removed note for: {target}")
+
+
+def update_rels(old_note: str, new_note: str) -> None:
+    """Replace occurrences of old_note with new_note in rel(...) lines."""
+    if not FACTS_FILE.exists():
+        return
+    pattern = re.compile(rf"\b{re.escape(old_note)}\b")
+    changed = False
+    with FACTS_FILE.open("r+") as f:
+        lines = f.readlines()
+        f.seek(0)
+        for line in lines:
+            if line.strip().startswith("rel(") and pattern.search(line):
+                line = pattern.sub(new_note, line)
+                changed = True
+            f.write(line)
+        f.truncate()
+    if changed:
+        print(f"Updated rels: {old_note} → {new_note}")
 
 
 def sync_existing(known: set[str]) -> None:
-    """Ensure facts.pl has notes for every current file in the folder."""
     for path in KNOWLEDGE_DIR.iterdir():
-        if not path.is_file():
-            continue
-        if path.name.startswith(("._", ".DS_Store")):
-            continue
-        rel = f"files/{path.name}"
-        if rel not in known:
-            append_note(path.name)
-            known.add(rel)
+        if path.is_file() and not path.name.startswith(("._", ".DS_Store")):
+            rel = f"files/{path.name}"
+            if rel not in known:
+                append_note(path.name)
+                known.add(rel)
 
 
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # Watchdog handler
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 class Handler(FileSystemEventHandler):
-    """Respond to filesystem changes and keep facts.pl up to date."""
-
     def __init__(self, known: set[str]):
         self.known = known
 
-    # ------------- internal helpers ---------------------------------
-    def _ignore(self, path: Path) -> bool:
+    # ---------- helpers -----------------------------------------------------
+    @staticmethod
+    def _ignore(path: Path) -> bool:
         return path.name.startswith(("._", ".DS_Store"))
 
     def _maybe_add(self, path: Path) -> None:
@@ -122,7 +135,7 @@ class Handler(FileSystemEventHandler):
             remove_note(path.name)
             self.known.remove(rel)
 
-    # ------------- event callbacks ----------------------------------
+    # ---------- watchdog callbacks -----------------------------------------
     def on_created(self, event: FileCreatedEvent) -> None:  # type: ignore[override]
         if not event.is_directory:
             self._maybe_add(Path(event.src_path))
@@ -138,30 +151,33 @@ class Handler(FileSystemEventHandler):
         src = Path(event.src_path)
         dst = Path(event.dest_path)
 
-        # Case A: rename/move *inside* the watched folder
+        # ── rename within the folder ───────────────────────────────────────
         if src.parent == KNOWLEDGE_DIR and dst.parent == KNOWLEDGE_DIR:
+            old_note = format(src.stem)
+            new_note = format(dst.stem)
             self._maybe_remove(src)
+            update_rels(old_note, new_note)
             self._maybe_add(dst)
             return
 
-        # Case B: moved *into* the folder
+        # ── moved in ───────────────────────────────────────────────────────
         if dst.parent == KNOWLEDGE_DIR:
             self._maybe_add(dst)
 
-        # Case C: moved *out of* the folder
+        # ── moved out ──────────────────────────────────────────────────────
         if src.parent == KNOWLEDGE_DIR:
             self._maybe_remove(src)
 
 
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # Main loop
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     KNOWLEDGE_DIR.mkdir(exist_ok=True)
     known = load_known_files()
     sync_existing(known)
 
-    print(f"Watching {KNOWLEDGE_DIR} for changes. Press Ctrl+C to stop.")
+    print(f"Watching {KNOWLEDGE_DIR} …  Ctrl-C to exit.")
     observer = Observer()
     observer.schedule(Handler(known), str(KNOWLEDGE_DIR), recursive=False)
     observer.start()

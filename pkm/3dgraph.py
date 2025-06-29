@@ -179,5 +179,10 @@ plot.on('plotly_click', function(data){
 });
 """
 
-fig.write_html("graph.html", include_plotlyjs="cdn", auto_open=True,
-               post_script=CLICK_JS)
+# --- write the updated file ---
+fig.write_html("graph.html", include_plotlyjs="cdn",
+               auto_open=False, post_script=CLICK_JS)
+
+# --- bring/reload the page in the browser ---
+import webbrowser
+webbrowser.open("http://localhost:8000/graph.html", new=0, autoraise=True)
