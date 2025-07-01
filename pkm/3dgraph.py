@@ -17,9 +17,9 @@ import re
 
 # ── CONFIG ────────────────────────────────────────────────────────
 CSV_FILE       = "relations.csv"
-ITERATIONS     = 30
-SPACING_VALUES = [0.25, 0.5, 1, 2]     # ← updated
-REPEL_VALUES   = [0.2, 0.4, 0.8, 1.6]  # ← new slider values
+ITERATIONS     = 100
+SPACING_VALUES = [0.25, 0.5, 1, 2, 4, 8]     # ← updated
+REPEL_VALUES   = [0.5, 1, 2, 4, 8, 16]  # ← new slider values
 ARROW_FRAC     = 0.12
 
 # ── NOTE FILE LOOKUP ─────────────────────────────────────────────-
