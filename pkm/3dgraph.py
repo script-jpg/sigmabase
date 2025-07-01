@@ -3,6 +3,7 @@
 3-D note-graph viewer – updated defaults
 ——————————————————————————————
 • Spacing slider: 0.25, 0.5, 1, 2
+• Repulsive-force slider: 0.2, 0.4, 0.8, 1.6
 • Toggles (one button each):
       ⚲ edge-labels     (off by default)
       ⇢ arrowheads      (off by default)
@@ -16,9 +17,9 @@ import re
 
 # ── CONFIG ────────────────────────────────────────────────────────
 CSV_FILE       = "relations.csv"
-CACHE_LAYOUT   = pathlib.Path("layout.json")
 ITERATIONS     = 30
 SPACING_VALUES = [0.25, 0.5, 1, 2]     # ← updated
+REPEL_VALUES   = [0.2, 0.4, 0.8, 1.6]  # ← new slider values
 ARROW_FRAC     = 0.12
 
 # ── NOTE FILE LOOKUP ─────────────────────────────────────────────-
@@ -39,12 +40,18 @@ df = pd.read_csv(CSV_FILE)
 G  = nx.from_pandas_edgelist(df, "Source", "Target",
                              edge_attr="Label", create_using=nx.DiGraph())
 
-# ── LAYOUT (cached) ───────────────────────────────────────────────
-if CACHE_LAYOUT.exists():
-    pos0 = {n: np.array(p) for n, p in json.load(CACHE_LAYOUT.open()).items()}
-else:
-    pos0 = nx.spring_layout(G, dim=3, seed=42, iterations=ITERATIONS)
-    json.dump({n: pos0[n].tolist() for n in G}, CACHE_LAYOUT.open("w"))
+# ── LAYOUTS PER REPULSIVE VALUE (cached) ─────────────────────────
+layouts = {}
+for k in REPEL_VALUES:
+    cf = pathlib.Path(f"layout_{k}.json")
+    if cf.exists():
+        layouts[k] = {n: np.array(p) for n, p in json.load(cf.open()).items()}
+    else:
+        layouts[k] = nx.spring_layout(G, dim=3, seed=42, iterations=ITERATIONS, k=k)
+        json.dump({n: layouts[k][n].tolist() for n in G}, cf.open("w"))
+
+DEFAULT_K = REPEL_VALUES[1]
+pos0 = layouts[DEFAULT_K]
 
 comp_id  = {n: i for i, c in enumerate(nx.connected_components(G.to_undirected()))
             for n in c}
@@ -56,8 +63,8 @@ node_text_bold  = [f"<b>{t}</b>" for t in node_text_plain]
 node_files      = [note_files.get(n, "") for n in G]
 
 # ── COORD ARRAYS PER SPACING ─────────────────────────────────────
-def arrays_for(sp):
-    pos = {n: pos0[n] + (sp-1)*centroid[comp_id[n]] for n in G}
+def arrays_for(pos_base, sp):
+    pos = {n: pos_base[n] + (sp-1)*centroid[comp_id[n]] for n in G}
     node_xyz = np.array([pos[n] for n in G]).T
 
     edge = [[], [], []]; arrow = [[], [], []]
@@ -86,13 +93,14 @@ def arrays_for(sp):
                 edge_lbl=(lx, ly, lz, ltxt),
                 node_lbl=node_xyz)
 
-arrays = {s: arrays_for(s) for s in SPACING_VALUES}
+arrays = {k: {s: arrays_for(layouts[k], s) for s in SPACING_VALUES}
+          for k in REPEL_VALUES}
 
 # ── TRACE FACTORY ────────────────────────────────────────────────
 def sc3d(x, y, z, **kw):
     t = go.Scatter3d(x=x, y=y, z=z, **kw); t.uirevision = "static"; return t
 
-a1 = arrays[1]
+a1 = arrays[DEFAULT_K][1]
 
 edge_t  = sc3d(*a1["edge"],  mode="lines", line=dict(width=1), hoverinfo="none")
 arrow_t = sc3d(*a1["arrow"], mode="lines", line=dict(width=4),
@@ -123,7 +131,7 @@ fig = go.Figure(data=[edge_t, arrow_t, edge_lbl_t, node_lbl_t, node_t])
 # ── SLIDER (restyle) ─────────────────────────────────────────────
 steps = []
 for s in SPACING_VALUES:
-    a = arrays[s]
+    a = arrays[DEFAULT_K][s]
     steps.append(dict(
         label=str(s),
         method="restyle",
@@ -138,9 +146,30 @@ for s in SPACING_VALUES:
         }, [0,1,2,3,4]]
     ))
 
+repel_steps = []
+for k in REPEL_VALUES:
+    a = arrays[k][1]
+    repel_steps.append(dict(
+        label=str(k),
+        method="restyle",
+        args=[{
+            "x":[a["edge"][0], a["arrow"][0], a["edge_lbl"][0],
+                 a["node_lbl"][0], a["node"][0]],
+            "y":[a["edge"][1], a["arrow"][1], a["edge_lbl"][1],
+                 a["node_lbl"][1], a["node"][1]],
+            "z":[a["edge"][2], a["arrow"][2], a["edge_lbl"][2],
+                 a["node_lbl"][2], a["node"][2]],
+            "text":[None, None, a["edge_lbl"][3], node_text_bold, None]
+        }, [0,1,2,3,4]]
+    ))
+
 fig.update_layout(
-    sliders=[dict(steps=steps, active=SPACING_VALUES.index(1),
-                  x=0.02, y=-0.05, xanchor="left", len=0.7)],
+    sliders=[
+        dict(steps=steps, active=SPACING_VALUES.index(1),
+             x=0.02, y=-0.05, xanchor="left", len=0.45),
+        dict(steps=repel_steps, active=REPEL_VALUES.index(DEFAULT_K),
+             x=0.55, y=-0.05, xanchor="left", len=0.4)
+    ],
 
     # ── SINGLE-TOGGLE BUTTONS ────────────────────────────────────
     updatemenus=[dict(
