@@ -1,5 +1,6 @@
 Source,Target,Label
 convex_optimization_problem,mathematical_optimization_problem,special case of
+joint_cdf,joint_discrete_random_variables,related to
 kth_moment_of_gam_a_b,kth_moment,example of
 linear_program,convex_optimization_problem,special case of
 linear_program,mathematical_optimization_problem,special case of
@@ -17,4 +18,5 @@ moments_of_poisson,kth_moment,calculates specific value of
 prepositions_and_proofs,dependent_type_theory,related to
 properties_of_mgf,kth_moment,way to calculate
 properties_of_mgf,mgf,related to
+stat330_lec4_mgf_and_their_applications,mgf,teaches
 uniqueness_of_mgf,mgf,related to

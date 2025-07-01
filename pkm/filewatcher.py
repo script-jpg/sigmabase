@@ -121,10 +121,11 @@ class KnowledgeHandler(FileSystemEventHandler):
 
 # ── watcher 2: facts.pl  →  viz ──────────────────────────────────────────────
 def run_viz() -> None:
-    subprocess.run(
-        ["swipl", "-q", "-s", str(RULES_FILE), "-g", "viz", "-t", "halt"],
-        check=False,
-    )
+    # subprocess.run(
+    #     ["swipl", "-q", "-s", str(RULES_FILE), "-g", "viz", "-t", "halt"],
+    #     check=False,
+    # )
+    pass
 
 class FactsHandler(FileSystemEventHandler):
     def _maybe_viz(self, p: Path) -> None:

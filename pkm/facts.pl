@@ -30,6 +30,7 @@ note(uncertainty_quantification, 'files/Uncertainty Quantification.md').
 note(uniqueness_of_mgf, 'files/MGF vs Distribution (uniqueness of mgf).pdf').
 
 rel(convex_optimization_problem, mathematical_optimization_problem, 'special case of').
+rel(joint_cdf, joint_discrete_random_variables, 'related to').
 rel(kth_moment_of_gam_a_b, kth_moment, 'example of').
 rel(linear_program, convex_optimization_problem, 'special case of').
 rel(linear_program, mathematical_optimization_problem, 'special case of').
@@ -47,4 +48,5 @@ rel(moments_of_poisson, kth_moment, 'calculates specific value of').
 rel(prepositions_and_proofs, dependent_type_theory, 'related to').
 rel(properties_of_mgf, kth_moment, 'way to calculate').
 rel(properties_of_mgf, mgf, 'related to').
+rel(stat330_lec4_mgf_and_their_applications, mgf, 'teaches').
 rel(uniqueness_of_mgf, mgf, 'related to').

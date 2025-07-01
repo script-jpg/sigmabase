@@ -21,8 +21,6 @@ MERGE (:Note {id:'nn_1_1_1_example', path:'files/nn_1_1_1_example_mechanics_of_p
 MERGE (:Note {id:'nn_1_1_1_example_mechanics_of_proof', path:'files/nn_1_1_1_example_mechanics_of_proof.pdf'});
 MERGE (:Note {id:'nn_1_1_3_example', path:'files/1.1.3-Example.pdf'});
 MERGE (:Note {id:'nn_1_1_4_example', path:'files/1.1.4-Example.pdf'});
-MERGE (:Note {id:'nn_ppp', path:'files/nn_ppp.pdf'});
-MERGE (:Note {id:'ppp', path:'files/nn_ppp.pdf'});
 MERGE (:Note {id:'prepositions_and_proofs', path:'files/Prepositions and Proofs.pdf'});
 MERGE (:Note {id:'properties_of_mgf', path:'files/properties of mgf.pdf'});
 MERGE (:Note {id:'stat330_lec4_mgf_and_their_applications', path:'files/stat330_lec4 MGF and Their Applications.pdf'});
@@ -32,6 +30,8 @@ MERGE (:Note {id:'uniqueness_of_mgf', path:'files/MGF vs Distribution (uniquenes
 // Relationships
 MATCH (a:Note {id:'convex_optimization_problem'}), (b:Note {id:'mathematical_optimization_problem'})
 MERGE (a)-[:SPECIAL_CASE_OF]->(b);
+MATCH (a:Note {id:'joint_cdf'}), (b:Note {id:'joint_discrete_random_variables'})
+MERGE (a)-[:RELATED_TO]->(b);
 MATCH (a:Note {id:'kth_moment_of_gam_a_b'}), (b:Note {id:'kth_moment'})
 MERGE (a)-[:EXAMPLE_OF]->(b);
 MATCH (a:Note {id:'linear_program'}), (b:Note {id:'convex_optimization_problem'})
@@ -42,6 +42,8 @@ MATCH (a:Note {id:'mgf_of_gam_a_b'}), (b:Note {id:'mgf'})
 MERGE (a)-[:EXAMPLE_OF]->(b);
 MATCH (a:Note {id:'mgf_of_gam_a_b'}), (b:Note {id:'moments_of_gam'})
 MERGE (a)-[:GENERALIZATION_OF]->(b);
+MATCH (a:Note {id:'mgf_of_linear_transform_of_n_0_1'}), (b:Note {id:'mgf'})
+MERGE (a)-[:EXAMPLE_OF]->(b);
 MATCH (a:Note {id:'mgf_of_n_0_1'}), (b:Note {id:'mgf'})
 MERGE (a)-[:EXAMPLE_OF]->(b);
 MATCH (a:Note {id:'mgf_of_normal'}), (b:Note {id:'mgf'})
@@ -58,9 +60,13 @@ MATCH (a:Note {id:'moments_of_gam'}), (b:Note {id:'properties_of_mgf'})
 MERGE (a)-[:APPLIES]->(b);
 MATCH (a:Note {id:'moments_of_poisson'}), (b:Note {id:'kth_moment'})
 MERGE (a)-[:CALCULATES_SPECIFIC_VALUE_OF]->(b);
+MATCH (a:Note {id:'prepositions_and_proofs'}), (b:Note {id:'dependent_type_theory'})
+MERGE (a)-[:RELATED_TO]->(b);
 MATCH (a:Note {id:'properties_of_mgf'}), (b:Note {id:'kth_moment'})
 MERGE (a)-[:WAY_TO_CALCULATE]->(b);
 MATCH (a:Note {id:'properties_of_mgf'}), (b:Note {id:'mgf'})
 MERGE (a)-[:RELATED_TO]->(b);
+MATCH (a:Note {id:'stat330_lec4_mgf_and_their_applications'}), (b:Note {id:'mgf'})
+MERGE (a)-[:TEACHES]->(b);
 MATCH (a:Note {id:'uniqueness_of_mgf'}), (b:Note {id:'mgf'})
 MERGE (a)-[:RELATED_TO]->(b);
