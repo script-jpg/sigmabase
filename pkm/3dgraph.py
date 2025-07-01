@@ -209,8 +209,11 @@ plot.on('plotly_click', function(data){
 """
 
 # --- write the updated file ---
-fig.write_html("graph.html", include_plotlyjs="cdn",
-               auto_open=False, post_script=CLICK_JS)
+# Insert node names as hidden text so they are searchable with Ctrl+F.
+html = fig.to_html(include_plotlyjs="cdn", post_script=CLICK_JS)
+hidden_div = "<div id='node-list' style='display:none'>" + "\n".join(node_text_plain) + "</div>"
+html = html.replace("</body>", f"{hidden_div}\n</body>")
+pathlib.Path("graph.html").write_text(html)
 
 # --- bring/reload the page in the browser ---
 import webbrowser
