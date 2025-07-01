@@ -163,7 +163,7 @@ fig.update_layout(
         ]
     )],
 
-    scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
+    scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False, dragmode='orbit'),
     margin=dict(l=0, r=0, t=0, b=0),
     clickmode="event+select"
 )
