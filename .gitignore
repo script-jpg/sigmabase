@@ -6,6 +6,8 @@ pkm/._.obsidian
 pkm/._layout.json
 pkm/._relations.csv
 pkm/layout.json
+pkm/layout_*.json
+pkm/graph.html
 __pycache__/
 pkm/__pycache__/
 pkm/.DS_Store
