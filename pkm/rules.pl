@@ -39,5 +39,5 @@ export_rel_csv(File) :-
 %%  Exports rel/3 facts to 'relations.csv' and runs 'python3 3dgraph.py'
 viz :-
     export_rel_csv('relations.csv'),
-    shell("rm layout.json"),
+    shell("rm layout_*"),
     shell("python3 3dgraph.py").

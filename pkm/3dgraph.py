@@ -7,7 +7,7 @@
 • Toggles (one button each):
       ⚲ edge-labels     (off by default)
       ⇢ arrowheads      (off by default)
-      �� node-labels    (ON  by default)
+      🔤 node-labels    (ON  by default)
 • Nodes themselves start hidden (can be revealed by editing the code if needed)
 • All performance tweaks preserved (cached layout, uirevision, no cones)
 """
@@ -129,46 +129,44 @@ node_t = sc3d(*a1["node"], mode="markers",
 fig = go.Figure(data=[edge_t, arrow_t, edge_lbl_t, node_lbl_t, node_t])
 
 # ── SLIDER (restyle) ─────────────────────────────────────────────
+# Create a JavaScript variable to store the arrays data
+arrays_js = json.dumps({
+    str(k): {
+        str(s): {
+            "edge": [arrays[k][s]["edge"][i] for i in range(3)],
+            "arrow": [arrays[k][s]["arrow"][i] for i in range(3)],
+            "edge_lbl": [arrays[k][s]["edge_lbl"][i] for i in range(4)],
+            "node_lbl": [arrays[k][s]["node_lbl"][i].tolist() for i in range(3)],
+            "node": [arrays[k][s]["node"][i].tolist() for i in range(3)]
+        } for s in SPACING_VALUES
+    } for k in REPEL_VALUES
+})
+
+# Create dummy steps that will be handled by JavaScript
 steps = []
-for s in SPACING_VALUES:
-    a = arrays[DEFAULT_K][s]
+for i, s in enumerate(SPACING_VALUES):
     steps.append(dict(
         label=str(s),
-        method="restyle",
-        args=[{
-            "x":[a["edge"][0], a["arrow"][0], a["edge_lbl"][0],
-                 a["node_lbl"][0], a["node"][0]],
-            "y":[a["edge"][1], a["arrow"][1], a["edge_lbl"][1],
-                 a["node_lbl"][1], a["node"][1]],
-            "z":[a["edge"][2], a["arrow"][2], a["edge_lbl"][2],
-                 a["node_lbl"][2], a["node"][2]],
-            "text":[None, None, a["edge_lbl"][3], node_text_bold, None]
-        }, [0,1,2,3,4]]
+        method="relayout",
+        args=[{}]  # Empty args, will be handled by JS
     ))
 
 repel_steps = []
-for k in REPEL_VALUES:
-    a = arrays[k][1]
+for j, k in enumerate(REPEL_VALUES):
     repel_steps.append(dict(
         label=str(k),
-        method="restyle",
-        args=[{
-            "x":[a["edge"][0], a["arrow"][0], a["edge_lbl"][0],
-                 a["node_lbl"][0], a["node"][0]],
-            "y":[a["edge"][1], a["arrow"][1], a["edge_lbl"][1],
-                 a["node_lbl"][1], a["node"][1]],
-            "z":[a["edge"][2], a["arrow"][2], a["edge_lbl"][2],
-                 a["node_lbl"][2], a["node"][2]],
-            "text":[None, None, a["edge_lbl"][3], node_text_bold, None]
-        }, [0,1,2,3,4]]
+        method="relayout",
+        args=[{}]  # Empty args, will be handled by JS
     ))
 
 fig.update_layout(
     sliders=[
         dict(steps=steps, active=SPACING_VALUES.index(1),
-             x=0.02, y=-0.05, xanchor="left", len=0.45),
+             x=0.02, y=-0.05, xanchor="left", len=0.45,
+             currentvalue=dict(visible=False)),
         dict(steps=repel_steps, active=REPEL_VALUES.index(DEFAULT_K),
-             x=0.55, y=-0.05, xanchor="left", len=0.4)
+             x=0.55, y=-0.05, xanchor="left", len=0.4,
+             currentvalue=dict(visible=False))
     ],
 
     # ── SINGLE-TOGGLE BUTTONS ────────────────────────────────────
@@ -197,15 +195,115 @@ fig.update_layout(
     clickmode="event+select"
 )
 
-CLICK_JS = """
+CLICK_JS = f"""
+var SPACING_VALUES = {json.dumps(SPACING_VALUES)};
+var REPEL_VALUES = {json.dumps(REPEL_VALUES)};
+var arrays = {arrays_js};
+var node_text_bold = {json.dumps(node_text_bold)};
+var node_text_plain = {json.dumps(node_text_plain)};
+var node_files = {json.dumps(node_files)};
+
+// Initialize current values
+var current_spacing_idx = {SPACING_VALUES.index(1)};
+var current_repel_idx = {REPEL_VALUES.index(DEFAULT_K)};
+
 var plot = document.getElementsByClassName('plotly-graph-div')[0];
-plot.on('plotly_click', function(data){
+
+// Create search input
+var searchContainer = document.createElement('div');
+searchContainer.style.cssText = 'position: absolute; top: 10px; left: 10px; z-index: 1000;';
+searchContainer.innerHTML = `
+    <input type="text" id="nodeSearch" placeholder="Search nodes..." 
+           style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; 
+                  border-radius: 4px; width: 200px;">
+    <button id="clearSearch" style="padding: 8px 12px; margin-left: 5px; 
+            font-size: 14px; border: 1px solid #ccc; border-radius: 4px; 
+            background: #f0f0f0; cursor: pointer;">Clear</button>
+`;
+plot.parentElement.appendChild(searchContainer);
+
+// Search functionality
+var searchInput = document.getElementById('nodeSearch');
+var clearButton = document.getElementById('clearSearch');
+
+function filterNodes() {{
+    var searchTerm = searchInput.value.toLowerCase();
+    
+    if (searchTerm === '') {{
+        // Show all nodes
+        var allVisible = new Array(node_text_plain.length).fill(true);
+        updateNodeVisibility(allVisible);
+    }} else {{
+        // Filter nodes
+        var visibility = node_text_plain.map(function(text) {{
+            return text.toLowerCase().includes(searchTerm);
+        }});
+        updateNodeVisibility(visibility);
+    }}
+}}
+
+function updateNodeVisibility(visibility) {{
+    var k = REPEL_VALUES[current_repel_idx];
+    var s = SPACING_VALUES[current_spacing_idx];
+    var a = arrays[k][s];
+    
+    // Filter coordinates and text based on visibility
+    var filtered_x = [];
+    var filtered_y = [];
+    var filtered_z = [];
+    var filtered_text = [];
+    var filtered_customdata = [];
+    
+    for (var i = 0; i < visibility.length; i++) {{
+        if (visibility[i]) {{
+            filtered_x.push(a.node_lbl[0][i]);
+            filtered_y.push(a.node_lbl[1][i]);
+            filtered_z.push(a.node_lbl[2][i]);
+            filtered_text.push(node_text_bold[i]);
+            filtered_customdata.push(node_files[i]);
+        }}
+    }}
+    
+    // Update only the node label trace
+    Plotly.restyle(plot, {{
+        'x': [filtered_x],
+        'y': [filtered_y],
+        'z': [filtered_z],
+        'text': [filtered_text],
+        'customdata': [filtered_customdata]
+    }}, [3]);
+}}
+
+// Event listeners
+searchInput.addEventListener('input', filterNodes);
+clearButton.addEventListener('click', function() {{
+    searchInput.value = '';
+    filterNodes();
+}});
+
+// Handle clicks
+plot.on('plotly_click', function(data){{
     var c = data.points[0].curveNumber;
-    if(c===3 || c===4){
+    if(c===3 || c===4){{
         var url = data.points[0].customdata;
-        if(url){window.open(url);}
-    }
-});
+        if(url){{window.open(url);}}
+    }}
+}});
+
+// Handle slider changes
+plot.on('plotly_sliderchange', function(eventdata){{
+    // Determine which slider changed
+    if(eventdata.slider.x === 0.02){{
+        // Spacing slider
+        current_spacing_idx = eventdata.slider.active;
+    }} else {{
+        // Repel slider
+        current_repel_idx = eventdata.slider.active;
+    }}
+    
+    // Apply search filter when sliders change
+    filterNodes();
+}});
 """
 
 # --- write the updated file ---
