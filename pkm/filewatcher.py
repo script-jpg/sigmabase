@@ -17,6 +17,7 @@ from watchdog.events import (
     FileDeletedEvent,
 )
 from watchdog.observers import Observer
+import subprocess
 
 # ── paths ────────────────────────────────────────────────────────────────────
 KNOWLEDGE_DIR = Path(__file__).with_name("files")
@@ -125,6 +126,7 @@ def run_viz() -> None:
     #     ["swipl", "-q", "-s", str(RULES_FILE), "-g", "viz", "-t", "halt"],
     #     check=False,
     # )
+    subprocess.run(["./load_notes.sh"])
     pass
 
 class FactsHandler(FileSystemEventHandler):

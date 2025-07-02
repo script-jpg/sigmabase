@@ -36,7 +36,7 @@ def _periodic_loader(interval: int = 20) -> None:
 def main() -> None:
     # Start the periodic loader in the background (daemon thread so it stops
     # automatically when the main program exits).
-    threading.Thread(target=_periodic_loader, daemon=True).start()
+    # threading.Thread(target=_periodic_loader, daemon=True).start()
 
     # Launch both watchers in the background.
     watcher_proc = subprocess.Popen([sys.executable, str(WATCHER)])
